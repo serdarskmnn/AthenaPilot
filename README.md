@@ -4,8 +4,6 @@
 
 **AthenaPilot** is a modular, open-source flight control ecosystem designed for **VTOL (Vertical Take-Off and Landing)** UAVs. Unlike traditional autopilots, it decouples the control logic, mission planning, and physical simulation into three specialized environments, enabling rapid prototyping and Hardware-in-the-Loop (HIL) testing.
 
----
-
 ## 🏗️ System Architecture: "The Triad"
 
 The project is built upon a **Tri-Layer Architecture**, where each component runs independently but communicates in real-time.
