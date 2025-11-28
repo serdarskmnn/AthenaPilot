@@ -8,7 +8,7 @@
 
 The project is built upon a **Tri-Layer Architecture**, where each component runs independently but communicates in real-time.
 
-```mermaid
+
 graph TD;
     A[🐍 Python Navigator] -- Waypoints / Velocity --> B[⚡ C++ Flight Controller];
     B -- Motor PWM --> C[🔬 MATLAB Physics Engine];
