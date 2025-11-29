@@ -1,0 +1,26 @@
+[
+{
+  "directory": "/home/ercu/Desktop/cop2/AthenaPilot/firmware/build",
+  "command": "/usr/lib/ccache/c++  -I/home/ercu/Desktop/cop2/AthenaPilot/firmware/include -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/athena_firmware.dir/src/main.cpp.o -c /home/ercu/Desktop/cop2/AthenaPilot/firmware/src/main.cpp",
+  "file": "/home/ercu/Desktop/cop2/AthenaPilot/firmware/src/main.cpp",
+  "output": "CMakeFiles/athena_firmware.dir/src/main.cpp.o"
+},
+{
+  "directory": "/home/ercu/Desktop/cop2/AthenaPilot/firmware/build",
+  "command": "/usr/lib/ccache/c++  -I/home/ercu/Desktop/cop2/AthenaPilot/firmware/include -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/athena_firmware.dir/src/pid.cpp.o -c /home/ercu/Desktop/cop2/AthenaPilot/firmware/src/pid.cpp",
+  "file": "/home/ercu/Desktop/cop2/AthenaPilot/firmware/src/pid.cpp",
+  "output": "CMakeFiles/athena_firmware.dir/src/pid.cpp.o"
+},
+{
+  "directory": "/home/ercu/Desktop/cop2/AthenaPilot/firmware/build",
+  "command": "/usr/lib/ccache/c++  -I/home/ercu/Desktop/cop2/AthenaPilot/firmware/include -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/athena_firmware.dir/src/mixer.cpp.o -c /home/ercu/Desktop/cop2/AthenaPilot/firmware/src/mixer.cpp",
+  "file": "/home/ercu/Desktop/cop2/AthenaPilot/firmware/src/mixer.cpp",
+  "output": "CMakeFiles/athena_firmware.dir/src/mixer.cpp.o"
+},
+{
+  "directory": "/home/ercu/Desktop/cop2/AthenaPilot/firmware/build",
+  "command": "/usr/lib/ccache/c++  -I/home/ercu/Desktop/cop2/AthenaPilot/firmware/include -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/athena_firmware.dir/src/udp_socket.cpp.o -c /home/ercu/Desktop/cop2/AthenaPilot/firmware/src/udp_socket.cpp",
+  "file": "/home/ercu/Desktop/cop2/AthenaPilot/firmware/src/udp_socket.cpp",
+  "output": "CMakeFiles/athena_firmware.dir/src/udp_socket.cpp.o"
+}
+]

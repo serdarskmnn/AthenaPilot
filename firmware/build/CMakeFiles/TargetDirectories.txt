@@ -1,0 +1,3 @@
+/home/ercu/Desktop/cop2/AthenaPilot/firmware/build/CMakeFiles/athena_firmware.dir
+/home/ercu/Desktop/cop2/AthenaPilot/firmware/build/CMakeFiles/edit_cache.dir
+/home/ercu/Desktop/cop2/AthenaPilot/firmware/build/CMakeFiles/rebuild_cache.dir
