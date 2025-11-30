@@ -1,19 +1,5 @@
-#ifndef ATHENAPILOT_MIXER_H
-#define ATHENAPILOT_MIXER_H
-
+#pragma once
 #include <array>
 
-class Mixer {
-public:
-    Mixer(int pwmMin = 1000, int pwmMax = 2000);
-
-    // Returns array of four PWM values (m1..m4)
-    std::array<int,4> mix(float roll, float pitch, float yaw, float thrust);
-
-    void setPWMRange(int minVal, int maxVal);
-private:
-    int minPWM_, maxPWM_;
-    int clampPWM(int val);
-};
-
-#endif // ATHENAPILOT_MIXER_H
+// Simple 4-motor X-mixer using inputs: roll (-1..1), pitch (-1..1), yaw (-1..1), throttle (0..1)
+std::array<int,4> mix_motors(double roll, double pitch, double yaw, double throttle);

@@ -1,32 +1,24 @@
-// Simple UDP wrapper for Linux sockets
-#ifndef ATHENAPILOT_UDP_SOCKET_H
-#define ATHENAPILOT_UDP_SOCKET_H
+#pragma once
 
+#include <string>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-#include <string>
-#include <stdexcept>
+#include <netinet/in.h>
+#include <fcntl.h>
 #include <cstring>
-#include <iostream>
+#include <stdexcept>
 
 class UDPSocket {
 public:
     UDPSocket();
     ~UDPSocket();
 
-    // Bind the socket for receiving on the given local port
-    void bindReceive(uint16_t port, const std::string& address = "127.0.0.1");
-
-    // Blocking receive (wraps recvfrom). Returns the number of bytes received.
-    ssize_t blockingReceive(char* buffer, size_t size, struct sockaddr_in* from_addr);
-
-    // Send bytes to a remote address/port
-    ssize_t sendTo(const char* buffer, size_t size, const std::string& remoteAddress, uint16_t remotePort);
+    void bind_port(unsigned short port, const std::string &addr = "127.0.0.1");
+    int recv_from(char *buffer, size_t size, sockaddr_in &sender);
+    void send_to(const std::string &data, const std::string &addr, unsigned short port);
+    void set_nonblocking(bool nonblock);
 
 private:
-    int sockfd_; 
+    int sockfd_;
 };
-
-#endif // ATHENAPILOT_UDP_SOCKET_H

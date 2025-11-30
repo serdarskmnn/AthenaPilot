@@ -4,7 +4,7 @@
 # compile CXX with /usr/lib/ccache/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/ercu/Desktop/cop2/AthenaPilot/firmware/include
+CXX_INCLUDES = -I/home/ercu/Desktop/Repos/AthenaPilot/firmware/include
 
-CXX_FLAGS = -std=c++17 -Wall -Wextra -Wpedantic
+CXX_FLAGS = -std=gnu++17
 

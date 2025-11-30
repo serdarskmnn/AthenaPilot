@@ -8,10 +8,10 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/ercu/Desktop/cop2/AthenaPilot/firmware/src/main.cpp" "CMakeFiles/athena_firmware.dir/src/main.cpp.o" "gcc" "CMakeFiles/athena_firmware.dir/src/main.cpp.o.d"
-  "/home/ercu/Desktop/cop2/AthenaPilot/firmware/src/mixer.cpp" "CMakeFiles/athena_firmware.dir/src/mixer.cpp.o" "gcc" "CMakeFiles/athena_firmware.dir/src/mixer.cpp.o.d"
-  "/home/ercu/Desktop/cop2/AthenaPilot/firmware/src/pid.cpp" "CMakeFiles/athena_firmware.dir/src/pid.cpp.o" "gcc" "CMakeFiles/athena_firmware.dir/src/pid.cpp.o.d"
-  "/home/ercu/Desktop/cop2/AthenaPilot/firmware/src/udp_socket.cpp" "CMakeFiles/athena_firmware.dir/src/udp_socket.cpp.o" "gcc" "CMakeFiles/athena_firmware.dir/src/udp_socket.cpp.o.d"
+  "/home/ercu/Desktop/Repos/AthenaPilot/firmware/src/main.cpp" "CMakeFiles/athena_firmware.dir/src/main.cpp.o" "gcc" "CMakeFiles/athena_firmware.dir/src/main.cpp.o.d"
+  "/home/ercu/Desktop/Repos/AthenaPilot/firmware/src/mixer.cpp" "CMakeFiles/athena_firmware.dir/src/mixer.cpp.o" "gcc" "CMakeFiles/athena_firmware.dir/src/mixer.cpp.o.d"
+  "/home/ercu/Desktop/Repos/AthenaPilot/firmware/src/pid.cpp" "CMakeFiles/athena_firmware.dir/src/pid.cpp.o" "gcc" "CMakeFiles/athena_firmware.dir/src/pid.cpp.o.d"
+  "/home/ercu/Desktop/Repos/AthenaPilot/firmware/src/udp_socket.cpp" "CMakeFiles/athena_firmware.dir/src/udp_socket.cpp.o" "gcc" "CMakeFiles/athena_firmware.dir/src/udp_socket.cpp.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

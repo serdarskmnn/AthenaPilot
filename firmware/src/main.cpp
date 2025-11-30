@@ -1,116 +1,208 @@
 #include <iostream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <array>
 #include <chrono>
 #include <thread>
-#include <algorithm>
+#include <string>
+#include <cstring>
+#include <array>
 
-#include "udp_socket.h"
 #include "pid.h"
 #include "mixer.h"
+#include "udp_socket.h"
 
-// Ports and addresses used in the lock-step system
-static constexpr uint16_t SENSOR_PORT = 9001;       // Simulink -> Firmware (blocking receive)
-static constexpr uint16_t MOTOR_COMMAND_PORT = 9002; // Firmware -> Simulink (motor commands)
-static constexpr uint16_t GC_TELEM_PORT = 9003;     // Firmware -> Ground Control (telemetry)
-static constexpr const char* LOCALHOST = "127.0.0.1";
+enum FlightMode { DISARMED = 0, STABILIZE = 1, LOITER = 2, LAND = 3 };
 
-struct SensorPacket {
-    float roll, pitch, yaw, thrust;
-    float altitude, groundspeed, battery;
-    double timestamp;
+struct RCState {
+    int roll = 1500;
+    int pitch = 1500;
+    int yaw = 1500;
+    int throttle = 1000;
+    bool arm = false;
+    FlightMode mode = DISARMED;
 };
 
-// Deserialize a simple sensor CSV string: roll,pitch,yaw,thrust,alt,gs,batt,timestamp
-bool parseSensorCSV(const std::string& s, SensorPacket& out) {
-    std::istringstream iss(s);
-    std::string token;
-    std::vector<std::string> toks;
-    while (std::getline(iss, token, ',')) toks.push_back(token);
-    if (toks.size() < 8) return false;
-    try {
-        out.roll = std::stof(toks[0]); out.pitch = std::stof(toks[1]); out.yaw = std::stof(toks[2]);
-        out.thrust = std::stof(toks[3]); out.altitude = std::stof(toks[4]);
-        out.groundspeed = std::stof(toks[5]); out.battery = std::stof(toks[6]);
-        out.timestamp = std::stod(toks[7]);
-    } catch (...) {
-        return false;
+struct Telemetry {
+    double roll = 0.0; // degrees
+    double pitch = 0.0;
+    double yaw = 0.0;
+    bool armed = false;
+    FlightMode mode = DISARMED;
+    double battery = 12.6;
+};
+
+// Helper to parse simple CSV key:value messages
+static void parse_kv_csv(const std::string &s, RCState &rc) {
+    // Format: "ROLL:1500,PITCH:1500,YAW:1500,THROTTLE:1100,ARM:0,MODE:STABILIZE"
+    size_t start = 0;
+    while (start < s.size()) {
+        auto end = s.find(',', start);
+        if (end == std::string::npos) end = s.size();
+        std::string token = s.substr(start, end - start);
+        auto colon = token.find(':');
+        if (colon != std::string::npos) {
+            std::string key = token.substr(0, colon);
+            std::string val = token.substr(colon + 1);
+            if (key == "ROLL") rc.roll = std::stoi(val);
+            else if (key == "PITCH") rc.pitch = std::stoi(val);
+            else if (key == "YAW") rc.yaw = std::stoi(val);
+            else if (key == "THROTTLE") rc.throttle = std::stoi(val);
+            else if (key == "ARM") rc.arm = (std::stoi(val) != 0);
+            else if (key == "MODE") {
+                if (val == "STABILIZE") rc.mode = STABILIZE;
+                else if (val == "LOITER") rc.mode = LOITER;
+                else if (val == "LAND") rc.mode = LAND;
+            }
+        }
+        start = end + 1;
     }
-    return true;
 }
 
-int main(int argc, char** argv) {
-    std::cout << "Starting AthenaPilot Firmware (C++)" << std::endl;
+static std::string telemetry_to_csv(const Telemetry &t) {
+    char buf[256];
+    snprintf(buf, sizeof(buf), "ROLL:%.2f,PITCH:%.2f,YAW:%.2f,ARMED:%d,MODE:%d,BATT:%.2f",
+             t.roll, t.pitch, t.yaw, t.armed ? 1 : 0, (int)t.mode, t.battery);
+    return std::string(buf);
+}
+
+static std::string motors_to_csv(const std::array<int,4> &m) {
+    char buf[256];
+    snprintf(buf, sizeof(buf), "M1:%d,M2:%d,M3:%d,M4:%d", m[0], m[1], m[2], m[3]);
+    return std::string(buf);
+}
+
+int main() {
     try {
-        UDPSocket udp;
-        udp.bindReceive(SENSOR_PORT);
-        std::cout << "Listening for sensor data on port " << SENSOR_PORT << " (blocking)" << std::endl;
+        UDPSocket sensor_sock;
+        sensor_sock.bind_port(9002 /* sensors from Simulink */);
 
-        // Create PID controllers (example gains)
-        PID pid_roll(1.0, 0.01, 0.05, -1.0, 1.0);
-        PID pid_pitch(1.0, 0.01, 0.05, -1.0, 1.0);
-        PID pid_yaw(1.0, 0.0, 0.02, -1.0, 1.0);
+        UDPSocket rc_sock;
+        rc_sock.bind_port(9000 /* RC from GCS */);
+        rc_sock.set_nonblocking(true);
 
-        Mixer mixer(1000, 2000);
+        UDPSocket motor_sock; // we'll use send_to - no bind needed for sending
+        UDPSocket telemetry_sock; // to Python GCS 9003
 
-        char recvbuf[1024];
+        RCState rc_state;
+        Telemetry telemetry;
+
+        PID pid_roll(1.0, 0.0, 0.05);
+        PID pid_pitch(1.0, 0.0, 0.05);
+        PID pid_yaw(1.0, 0.0, 0.02);
+
+        auto last_time = std::chrono::steady_clock::now();
+
+        std::cout << "AthenaPilot Firmware starting - waiting for sensor data on UDP:9002 (blocking)\n";
+
+        char buffer[4096];
+        sockaddr_in sender;
+
         while (true) {
-            struct sockaddr_in from;
-            ssize_t n = udp.blockingReceive(recvbuf, sizeof(recvbuf) - 1, &from);
-            if (n <= 0) {
-                std::cerr << "recvfrom returned <=0, n=" << n << std::endl;
+            // 1) BLOCKING read from Simulink sensor packet (master clock)
+            int len = sensor_sock.recv_from(buffer, sizeof(buffer) - 1, sender);
+            if (len <= 0) {
+                // socket closed or error; short sleep & retry
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 continue;
             }
-            recvbuf[n] = '\0';
-            std::string msg(recvbuf);
-            SensorPacket packet;
-            if (!parseSensorCSV(msg, packet)) {
-                std::cerr << "Malformed sensor packet: '" << msg << "'" << std::endl;
-                continue; // Keep blocking for next packet - lock-step
+            buffer[len] = '\0';
+            std::string sensor_msg(buffer);
+
+            // parse sensor (CSV like: ROLL:0.1,PITCH:-0.2,YAW:1.2)
+            // simple parsing
+            double sim_roll = 0.0, sim_pitch = 0.0, sim_yaw = 0.0;
+            size_t start = 0;
+            while (start < sensor_msg.size()) {
+                auto end = sensor_msg.find(',', start);
+                if (end == std::string::npos) end = sensor_msg.size();
+                std::string token = sensor_msg.substr(start, end - start);
+                auto colon = token.find(':');
+                if (colon != std::string::npos) {
+                    std::string key = token.substr(0, colon);
+                    std::string val = token.substr(colon + 1);
+                    if (key == "ROLL") sim_roll = std::stod(val);
+                    else if (key == "PITCH") sim_pitch = std::stod(val);
+                    else if (key == "YAW") sim_yaw = std::stod(val);
+                }
+                start = end + 1;
             }
 
-            // Example setpoints: keep roll/pitch/yaw at zero, thrust set to sensor thrust as default
-            double target_roll = 0.0;
-            double target_pitch = 0.0;
-            double target_yaw = 0.0;
-            double dt = 0.02; // assume 50Hz control loop - dt might come from sensor timestamp in a real system
-            // compute control outputs
-            double cor_roll = pid_roll.compute(target_roll, packet.roll, dt);
-            double cor_pitch = pid_pitch.compute(target_pitch, packet.pitch, dt);
-            double cor_yaw = pid_yaw.compute(target_yaw, packet.yaw, dt);
+            // 2) Non-blocking RC update (if pending)
+            sockaddr_in rc_sender;
+            int rlen = rc_sock.recv_from(buffer, sizeof(buffer) - 1, rc_sender);
+            if (rlen > 0) {
+                buffer[rlen] = '\0';
+                parse_kv_csv(std::string(buffer), rc_state);
+            }
 
-            // Inputs to mixer: roll/pitch/yaw corrections [-1..1], thrust in [0..1]
-            float thrust = std::clamp(packet.thrust, 0.0f, 1.0f);
-            std::array<int,4> motors = mixer.mix((float)cor_roll, (float)cor_pitch, (float)cor_yaw, thrust);
+            // 3) Determine dt from last sensor packet (physics master clock)
+            auto now = std::chrono::steady_clock::now();
+            std::chrono::duration<double> dt_dur = now - last_time;
+            double dt = dt_dur.count();
+            if (dt <= 0) dt = 0.01; // fallback
+            last_time = now;
 
-            // pack motor command CSV: m1,m2,m3,m4
-            std::ostringstream cmd;
-            cmd << motors[0] << "," << motors[1] << "," << motors[2] << "," << motors[3];
-            std::string cmdstr = cmd.str();
-            udp.sendTo(cmdstr.c_str(), cmdstr.size(), LOCALHOST, MOTOR_COMMAND_PORT);
+            telemetry.roll = sim_roll;
+            telemetry.pitch = sim_pitch;
+            telemetry.yaw = sim_yaw;
+            telemetry.armed = rc_state.arm;
+            telemetry.mode = rc_state.mode;
 
-            // Send telemetry to ground control on port 9003
-            std::ostringstream tel;
-            tel << "TELEM," << "alt=" << packet.altitude
-                << ",gs=" << packet.groundspeed
-                << ",batt=" << packet.battery
-                << ",r=" << packet.roll
-                << ",p=" << packet.pitch
-                << ",y=" << packet.yaw
-                << ",m1=" << motors[0]
-                << ",m2=" << motors[1]
-                << ",m3=" << motors[2]
-                << ",m4=" << motors[3];
-            std::string telas = tel.str();
-            udp.sendTo(telas.c_str(), telas.size(), LOCALHOST, GC_TELEM_PORT);
+            // 4) State machine
+            static FlightMode state = DISARMED;
+            if (state == DISARMED && rc_state.arm) {
+                state = STABILIZE;
+                std::cout << "State: DISARMED -> STABILIZE (armed)\n";
+            } else if (state != DISARMED && !rc_state.arm) {
+                state = DISARMED;
+                std::cout << "State: -> DISARMED (disarmed)\n";
+            } else {
+                // mode switch
+                if (rc_state.mode != state) {
+                    state = rc_state.mode;
+                    std::cout << "Mode changed -> " << (int)state << "\n";
+                }
+            }
 
-            // For developer visibility
-            std::cout << "Received sensor packet @ " << packet.timestamp << " -> motors: " << cmdstr << std::endl;
+            // 5) Control
+            std::array<int,4> motor_pwms{1000,1000,1000,1000};
+            if (state == DISARMED) {
+                // motors 0
+                motor_pwms = {1000,1000,1000,1000};
+                pid_roll.reset(); pid_pitch.reset(); pid_yaw.reset();
+            } else {
+                // Map RC to setpoints
+                double roll_sp = (rc_state.roll - 1500) / 500.0; // [-1,1] -> map to desired degrees or rate
+                double pitch_sp = (rc_state.pitch - 1500) / 500.0; // simple
+                double yaw_sp = (rc_state.yaw - 1500) / 500.0;
+                double throttle = (rc_state.throttle - 1000) / 1000.0;
+                if (throttle < 0.0) throttle = 0.0; if (throttle > 1.0) throttle = 1.0;
+
+                // Use simple PID controlling angle -> for demo we just treat setpoint as measured
+                double roll_cmd = pid_roll.update(roll_sp, telemetry.roll / 45.0 /* normalized approx */, dt);
+                double pitch_cmd = pid_pitch.update(pitch_sp, telemetry.pitch / 45.0, dt);
+                double yaw_cmd = pid_yaw.update(yaw_sp, telemetry.yaw / 180.0, dt);
+
+                // combine and mix
+                auto motors = mix_motors(roll_cmd, pitch_cmd, yaw_cmd, throttle);
+                motor_pwms = motors;
+            }
+
+            // 6) Send motor outputs to Simulink (9001)
+            std::string motor_msg = motors_to_csv(motor_pwms);
+            motor_sock.send_to(motor_msg, "127.0.0.1", 9001);
+
+            // 7) Send telemetry to Python GCS (9003)
+            std::string telem = telemetry_to_csv(telemetry);
+            telemetry_sock.send_to(telem, "127.0.0.1", 9003);
+
+            // 8) (Optional) Print a small status
+            std::cout << "Telemetry: " << telem << " -> Motors: " << motor_msg << "\n";
+
+            // The Simulink master will pause until it gets motor data if configured; otherwise small delay
+            // We continue to next sensor packet - main loop is locked by blocking recv
         }
-    } catch (const std::exception& ex) {
-        std::cerr << "Fatal error: " << ex.what() << std::endl;
+
+    } catch (const std::exception &ex) {
+        std::cerr << "Exception: " << ex.what() << "\n";
         return 1;
     }
     return 0;
