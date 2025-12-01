@@ -1,30 +1,17 @@
 #include "mixer.h"
 #include <algorithm>
 
-static int throttle_to_pwm(double t) {
-    int pwm = int(1000 + t * 1000.0);
-    if (pwm < 1000) pwm = 1000;
-    if (pwm > 2000) pwm = 2000;
-    return pwm;
-}
+Mixer::Mixer() {}
 
-std::array<int,4> mix_motors(double roll, double pitch, double yaw, double throttle) {
-    // roll, pitch, yaw in [-1, 1]; throttle in [0,1]
-    // X config:
-    // M1 = Throttle + Pitch + Roll - Yaw
-    // M2 = Throttle + Pitch - Roll + Yaw
-    // M3 = Throttle - Pitch - Roll - Yaw
-    // M4 = Throttle - Pitch + Roll + Yaw
-    double m1 = throttle + pitch + roll - yaw;
-    double m2 = throttle + pitch - roll + yaw;
-    double m3 = throttle - pitch - roll - yaw;
-    double m4 = throttle - pitch + roll + yaw;
+// Quadcopter X mix: motors M1(Front Left), M2(Front Right), M3(Rear Right), M4(Rear Left)
+// Basic mixing: throttle + roll - pitch +/- yaw
+std::array<int, 4> Mixer::mix(int roll_u, int pitch_u, int yaw_u, int throttle){
+    // Scale corrections; assume roll_u/pitch_u/yaw_u are in reasonable range
+    int m1 = throttle + roll_u - pitch_u + yaw_u; // front-left
+    int m2 = throttle - roll_u - pitch_u - yaw_u; // front-right
+    int m3 = throttle - roll_u + pitch_u + yaw_u; // rear-right
+    int m4 = throttle + roll_u + pitch_u - yaw_u; // rear-left
 
-    auto clamp = [](double v){ if (v < 0.0) return 0.0; if (v > 1.0) return 1.0; return v; };
-    m1 = clamp((m1 + 1.0) / 2.0);
-    m2 = clamp((m2 + 1.0) / 2.0);
-    m3 = clamp((m3 + 1.0) / 2.0);
-    m4 = clamp((m4 + 1.0) / 2.0);
-
-    return {throttle_to_pwm(m1), throttle_to_pwm(m2), throttle_to_pwm(m3), throttle_to_pwm(m4)};
+    auto clamp = [](int v){ return std::min(2000, std::max(1000, v)); };
+    return { clamp(m1), clamp(m2), clamp(m3), clamp(m4) };
 }

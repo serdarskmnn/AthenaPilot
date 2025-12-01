@@ -1,1 +1,1 @@
-# ground_control package
+__version__ = '0.1'

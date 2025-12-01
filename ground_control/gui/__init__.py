@@ -1,1 +1,1 @@
-# gui package
+__all__ = ['main_window','hud_widget']

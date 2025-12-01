@@ -1,21 +1,13 @@
-cmake_minimum_required(VERSION 3.16)
-project(AthenaPilotFirmware LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.10)
+project(AthenaPilotFirmware VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/include)
 
-add_executable(athena_firmware
-    src/main.cpp
-    src/pid.cpp
-    src/mixer.cpp
-    src/udp_socket.cpp
-)
+file(GLOB SOURCES ${CMAKE_SOURCE_DIR}/src/*.cpp)
 
-# Link libraries if needed (pthread for select/timers if used)
-find_package(Threads REQUIRED)
-target_link_libraries(athena_firmware PRIVATE Threads::Threads)
+add_executable(athena_firmware ${SOURCES})
 
-# Optionally install
-install(TARGETS athena_firmware DESTINATION bin)
+target_include_directories(athena_firmware PRIVATE ${CMAKE_SOURCE_DIR}/include)

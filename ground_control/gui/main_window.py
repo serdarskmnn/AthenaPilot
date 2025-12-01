@@ -1,117 +1,149 @@
-from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel, QComboBox
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QKeyEvent
-
+from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QPushButton, QComboBox, QTextEdit, QLabel, QHBoxLayout
+from PyQt6.QtCore import Qt, QTimer
 from .hud_widget import HUDWidget
 from ..comms.udp_link import UDPLink
 
 class MainWindow(QMainWindow):
-    def __init__(self, udp_link: UDPLink, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle('AthenaPilot Ground Control')
-        self.resize(900, 600)
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle('AthenaPilot GCS')
+        self.rc = {
+            'roll': 1500,
+            'pitch': 1500,
+            'yaw': 1500,
+            'throttle': 1000
+        }
+        self.key_pressed = set()
+        self._init_ui()
 
-        self.udp = udp_link
-        self.udp.telemetry_callback = self.on_telemetry
+        # UDP link
+        self.link = UDPLink(listen_port=9003, send_port=9000)
+        self.link.telemetry_received.connect(self._on_telemetry)
+        self.link.console_received.connect(self._on_console)
+        self.link.start_listening()
 
-        self.hud = HUDWidget(self)
-        self.console = QTextEdit(self)
-        self.console.setReadOnly(True)
+        # timer - send RC periodically
+        self.send_timer = QTimer(self)
+        self.send_timer.timeout.connect(self._send_rc)
+        self.send_timer.start(50)
 
-        self.arm_button = QPushButton("Arm")
-        self.arm_button.setStyleSheet("background-color: red; color: white; font-size: 18px")
-        self.arm_button.clicked.connect(self.toggle_arm)
-        self.is_armed = False
-
-        self.mode_combo = QComboBox(self)
-        self.mode_combo.addItems(['STABILIZE', 'LOITER', 'LAND'])
-        self.mode_combo.currentTextChanged.connect(self.set_mode)
-
-        # Create layout
-        right_layout = QVBoxLayout()
-        right_layout.addWidget(self.arm_button)
-        right_layout.addWidget(QLabel('Mode'))
-        right_layout.addWidget(self.mode_combo)
-        right_layout.addStretch()
-
-        top_layout = QHBoxLayout()
-        top_layout.addWidget(self.hud, 2)
-        right_container = QWidget()
-        right_container.setLayout(right_layout)
-        top_layout.addWidget(right_container, 1)
-
-        main_layout = QVBoxLayout()
-        main_layout.addLayout(top_layout, 3)
-        main_layout.addWidget(QLabel('Console'))
-        main_layout.addWidget(self.console, 1)
-
+    def _init_ui(self):
         central = QWidget()
-        central.setLayout(main_layout)
         self.setCentralWidget(central)
+        layout = QHBoxLayout()
+        central.setLayout(layout)
 
-        # RC channels - start centered
-        self.rc = {'roll':1500, 'pitch':1500, 'yaw':1500, 'throttle':1000, 'arm':0, 'mode':'STABILIZE'}
-        # push initial command
-        self.send_rc()
+        left = QVBoxLayout()
+        right = QVBoxLayout()
+        layout.addLayout(left, 3)
+        layout.addLayout(right, 1)
 
-    def toggle_arm(self):
-        self.is_armed = not self.is_armed
-        self.arm_button.setText('Disarm' if self.is_armed else 'Arm')
-        self.arm_button.setStyleSheet("background-color: green; color: white; font-size: 18px" if self.is_armed else "background-color: red; color: white; font-size: 18px")
-        self.rc['arm'] = 1 if self.is_armed else 0
-        self.send_rc()
+        # HUD
+        self.hud = HUDWidget(self)
+        self.hud.setMinimumSize(600,400)
+        left.addWidget(self.hud)
 
-    def set_mode(self, mode_text):
-        self.rc['mode'] = mode_text
-        self.udp.send_mode(mode_text)
-        self.send_rc()
+        # Map placeholder
+        self.map_placeholder = QLabel('Map (placeholder)')
+        self.map_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        left.addWidget(self.map_placeholder)
 
-    def keyPressEvent(self, event: QKeyEvent):
-        key = event.key()
-        step = 50
-        if key == Qt.Key.Key_W:
-            self.rc['pitch'] = max(1000, self.rc['pitch'] - step)
-        elif key == Qt.Key.Key_S:
-            self.rc['pitch'] = min(2000, self.rc['pitch'] + step)
-        elif key == Qt.Key.Key_A:
-            self.rc['roll'] = max(1000, self.rc['roll'] - step)
-        elif key == Qt.Key.Key_D:
-            self.rc['roll'] = min(2000, self.rc['roll'] + step)
-        elif key == Qt.Key.Key_Up:
-            self.rc['throttle'] = min(2000, self.rc['throttle'] + int(step/2))
-        elif key == Qt.Key.Key_Down:
-            self.rc['throttle'] = max(1000, self.rc['throttle'] - int(step/2))
-        elif key == Qt.Key.Key_Left:
-            self.rc['yaw'] = max(1000, self.rc['yaw'] - step)
-        elif key == Qt.Key.Key_Right:
-            self.rc['yaw'] = min(2000, self.rc['yaw'] + step)
-        else:
-            super().keyPressEvent(event)
-            return
-        self.send_rc()
+        # Controls
+        self.arm_btn = QPushButton('Arm')
+        self.arm_btn.setCheckable(True)
+        self.arm_btn.clicked.connect(self._on_arm)
+        right.addWidget(self.arm_btn)
 
-    def send_rc(self):
-        self.udp.send_rc(self.rc['roll'], self.rc['pitch'], self.rc['yaw'], self.rc['throttle'], self.rc['arm'], self.rc['mode'])
-        self.append_console(f"Sent RC: R:{self.rc['roll']} P:{self.rc['pitch']} Y:{self.rc['yaw']} T:{self.rc['throttle']} ARM:{self.rc['arm']} MODE:{self.rc['mode']}")
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItems(['STABILIZE','LOITER','LAND'])
+        self.mode_combo.currentTextChanged.connect(self._on_mode_change)
+        right.addWidget(self.mode_combo)
 
-    def on_telemetry(self, text: str):
-        # parse telemetry: ROLL:0.12,PITCH:-0.05,YAW:1.2,ARMED:1,MODE:1,BATT:12.34
-        parts = [p.strip() for p in text.split(',')]
-        telem = {}
-        for p in parts:
-            if ':' in p:
-                k, v = p.split(':', 1)
-                telem[k.upper()] = v
+        self.console = QTextEdit()
+        self.console.setReadOnly(True)
+        right.addWidget(self.console)
 
-        roll = float(telem.get('ROLL', 0.0))
-        pitch = float(telem.get('PITCH', 0.0))
-        yaw = float(telem.get('YAW', 0.0))
-        armed = int(telem.get('ARMED', '0'))
-        batt = float(telem.get('BATT', '0.0'))
-
+    def _on_telemetry(self, roll, pitch, yaw):
         # update HUD
-        self.hud.set_attitude(roll, pitch)
-        self.append_console(f"Telemetry: R:{roll:.2f} P:{pitch:.2f} Y:{yaw:.2f} ARM:{armed} BATT:{batt:.2f}")
+        self.hud.update_attitude(roll, pitch)
+        self.console.append(f"Telemetry: R={roll:.2f}, P={pitch:.2f}, Y={yaw:.2f}")
 
-    def append_console(self, txt: str):
-        self.console.append(txt)
+    def _on_console(self, text):
+        self.console.append(text)
+
+    def _on_arm(self, checked):
+        if checked:
+            self.arm_btn.setText('Disarm')
+            self.link.send('ARM,1')
+        else:
+            self.arm_btn.setText('Arm')
+            self.link.send('ARM,0')
+
+    def _on_mode_change(self, mode_text):
+        self.link.send(f"MODE,{mode_text}")
+
+    def _send_rc(self):
+        msg = f"RC,{self.rc['roll']},{self.rc['pitch']},{self.rc['yaw']},{self.rc['throttle']}"
+        self.link.send(msg)
+
+    # Key presses: W/S (pitch), A/D (roll), Z/X (yaw), F/V (throttle)
+    def keyPressEvent(self, event):
+        k = event.key()
+        step = 10
+        if k == Qt.Key.Key_W:
+            self.rc['pitch'] -= step
+            self.key_pressed.add('W')
+        elif k == Qt.Key.Key_S:
+            self.rc['pitch'] += step
+            self.key_pressed.add('S')
+        elif k == Qt.Key.Key_A:
+            self.rc['roll'] -= step
+            self.key_pressed.add('A')
+        elif k == Qt.Key.Key_D:
+            self.rc['roll'] += step
+            self.key_pressed.add('D')
+        elif k == Qt.Key.Key_Z:
+            self.rc['yaw'] -= step
+            self.key_pressed.add('Z')
+        elif k == Qt.Key.Key_X:
+            self.rc['yaw'] += step
+            self.key_pressed.add('X')
+        elif k == Qt.Key.Key_F:
+            self.rc['throttle'] = min(2000, self.rc['throttle'] + step)
+            self.key_pressed.add('F')
+        elif k == Qt.Key.Key_V:
+            self.rc['throttle'] = max(1000, self.rc['throttle'] - step)
+            self.key_pressed.add('V')
+        self._clamp_rc()
+
+    def keyReleaseEvent(self, event):
+        k = event.key()
+        if k == Qt.Key.Key_W:
+            self.key_pressed.discard('W')
+            self.rc['pitch'] = 1500
+        elif k == Qt.Key.Key_S:
+            self.key_pressed.discard('S')
+            self.rc['pitch'] = 1500
+        elif k == Qt.Key.Key_A:
+            self.key_pressed.discard('A')
+            self.rc['roll'] = 1500
+        elif k == Qt.Key.Key_D:
+            self.key_pressed.discard('D')
+            self.rc['roll'] = 1500
+        elif k == Qt.Key.Key_Z:
+            self.key_pressed.discard('Z')
+            self.rc['yaw'] = 1500
+        elif k == Qt.Key.Key_X:
+            self.key_pressed.discard('X')
+            self.rc['yaw'] = 1500
+        elif k == Qt.Key.Key_F:
+            self.key_pressed.discard('F')
+            # throttle persists
+        elif k == Qt.Key.Key_V:
+            self.key_pressed.discard('V')
+        self._clamp_rc()
+
+    def _clamp_rc(self):
+        for ch in ['roll','pitch','yaw']:
+            self.rc[ch] = max(1000, min(2000, self.rc[ch]))
+        self.rc['throttle'] = max(1000, min(2000, self.rc['throttle']))

@@ -1,55 +1,82 @@
 #include "udp_socket.h"
+#include <unistd.h>
+#include <fcntl.h>
+#include <cstring>
 #include <iostream>
 
-UDPSocket::UDPSocket() {
-    sockfd_ = ::socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd_ < 0) throw std::runtime_error("Failed to create UDP socket");
+UDPSocket::UDPSocket(){}
+
+UDPSocket::~UDPSocket(){
+    if (fd_ >= 0) close(fd_);
 }
 
-UDPSocket::~UDPSocket() {
-    if (sockfd_ >= 0) {
-        ::close(sockfd_);
+bool UDPSocket::bind_to_port(uint16_t port){
+    fd_ = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fd_ < 0) return false;
+    memset(&addr_, 0, sizeof(addr_));
+    addr_.sin_family = AF_INET;
+    addr_.sin_addr.s_addr = INADDR_ANY;
+    addr_.sin_port = htons(port);
+    if (bind(fd_, (struct sockaddr *)&addr_, sizeof(addr_)) < 0){
+        close(fd_);
+        fd_ = -1;
+        return false;
     }
+    return true;
 }
 
-void UDPSocket::bind_port(unsigned short port, const std::string &addr) {
-    sockaddr_in saddr;
-    saddr.sin_family = AF_INET;
-    saddr.sin_port = htons(port);
-    saddr.sin_addr.s_addr = inet_addr(addr.c_str());
-    int yes = 1;
-    ::setsockopt(sockfd_, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
-    if (bind(sockfd_, (sockaddr*)&saddr, sizeof(saddr)) < 0) {
-        perror("bind");
-        throw std::runtime_error("Failed to bind UDP socket");
+bool UDPSocket::send_to(const std::string &ip, uint16_t port, const std::string &data){
+    if (fd_ < 0) {
+        // create a socket for send
+        int s = socket(AF_INET, SOCK_DGRAM, 0);
+        if (s < 0) return false;
+        struct sockaddr_in to;
+        memset(&to, 0, sizeof(to));
+        to.sin_family = AF_INET;
+        inet_aton(ip.c_str(), &to.sin_addr);
+        to.sin_port = htons(port);
+        ssize_t sent = sendto(s, data.data(), data.size(), 0, (struct sockaddr*)&to, sizeof(to));
+        close(s);
+        return sent == (ssize_t)data.size();
     }
+    struct sockaddr_in to;
+    memset(&to, 0, sizeof(to));
+    to.sin_family = AF_INET;
+    inet_aton(ip.c_str(), &to.sin_addr);
+    to.sin_port = htons(port);
+    ssize_t sent = sendto(fd_, data.data(), data.size(), 0, (struct sockaddr*)&to, sizeof(to));
+    return sent == (ssize_t)data.size();
 }
 
-int UDPSocket::recv_from(char *buffer, size_t size, sockaddr_in &sender) {
-    socklen_t sender_len = sizeof(sender);
-    int r = ::recvfrom(sockfd_, buffer, size, 0, (sockaddr*)&sender, &sender_len);
-    if (r < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) return 0;
-        perror("recvfrom");
-        return -1;
+ssize_t UDPSocket::recv_blocking(char *buf, size_t max_len, std::string &sender_ip, uint16_t &sender_port){
+    if (fd_ < 0) return -1;
+    struct sockaddr_in from;
+    socklen_t flen = sizeof(from);
+    ssize_t r = recvfrom(fd_, buf, max_len, 0, (struct sockaddr*)&from, &flen);
+    if (r >= 0){
+        sender_ip = inet_ntoa(from.sin_addr);
+        sender_port = ntohs(from.sin_port);
     }
     return r;
 }
 
-void UDPSocket::send_to(const std::string &data, const std::string &addr, unsigned short port) {
-    sockaddr_in dest;
-    dest.sin_family = AF_INET;
-    dest.sin_port = htons(port);
-    dest.sin_addr.s_addr = inet_addr(addr.c_str());
-    ssize_t r = ::sendto(sockfd_, data.c_str(), data.size(), 0, (sockaddr*)&dest, sizeof(dest));
-    if (r < 0) {
-        perror("sendto");
+ssize_t UDPSocket::recv_nonblocking(char *buf, size_t max_len, std::string &sender_ip, uint16_t &sender_port){
+    if (fd_ < 0) return -1;
+    struct sockaddr_in from;
+    socklen_t flen = sizeof(from);
+    ssize_t r = recvfrom(fd_, buf, max_len, MSG_DONTWAIT, (struct sockaddr*)&from, &flen);
+    if (r >= 0){
+        sender_ip = inet_ntoa(from.sin_addr);
+        sender_port = ntohs(from.sin_port);
     }
+    return r;
 }
 
-void UDPSocket::set_nonblocking(bool nonblock) {
-    int flags = fcntl(sockfd_, F_GETFL, 0);
-    if (flags == -1) flags = 0;
-    if (nonblock) flags |= O_NONBLOCK; else flags &= ~O_NONBLOCK;
-    fcntl(sockfd_, F_SETFL, flags);
+bool UDPSocket::set_blocking(bool blocking){
+    if (fd_ < 0) return false;
+    int flags = fcntl(fd_, F_GETFL, 0);
+    if (flags < 0) return false;
+    if (!blocking) flags |= O_NONBLOCK; else flags &= ~O_NONBLOCK;
+    if (fcntl(fd_, F_SETFL, flags) < 0) return false;
+    return true;
 }

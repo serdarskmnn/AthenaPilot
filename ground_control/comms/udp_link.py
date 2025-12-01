@@ -1,58 +1,57 @@
 import socket
 import threading
 import time
+from PyQt6.QtCore import QObject, pyqtSignal
 
-class UDPLink:
-    """Simple UDP link between GCS and C++ firmware.
 
-    - Sends RC commands to 127.0.0.1:9000
-    - Listens for telemetry on 127.0.0.1:9003
-    """
-    def __init__(self, rc_host='127.0.0.1', rc_port=9000, telemetry_port=9003, telemetry_callback=None):
-        self.rc_host = rc_host
-        self.rc_port = rc_port
-        self.telemetry_port = telemetry_port
-        self.telemetry_callback = telemetry_callback
+class UDPLink(QObject):
+    telemetry_received = pyqtSignal(float, float, float)
+    console_received = pyqtSignal(str)
 
-        self.sock_out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    def __init__(self, listen_port=9003, send_port=9000, parent=None):
+        super().__init__(parent)
+        self.listen_port = listen_port
+        self.send_port = send_port
+        self.local_addr = ('127.0.0.1', self.send_port)
+        # Send socket
+        self.send_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Listen socket
+        self.recv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.recv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.recv_sock.bind(('127.0.0.1', self.listen_port))
+        self.recv_sock.setblocking(False)
+        self._running = False
 
-        self.sock_in = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock_in.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock_in.bind((rc_host, telemetry_port))
-        self.running = True
-        self._listener = threading.Thread(target=self._listener_thread, daemon=True)
-        self._listener.start()
-
-    def close(self):
-        self.running = False
+    def send(self, message: str):
         try:
-            self.sock_in.close()
-        except Exception:
-            pass
+            self.send_sock.sendto(message.encode('utf-8'), self.local_addr)
+            self.console_received.emit(f"Sent: {message}")
+        except Exception as ex:
+            self.console_received.emit(f"Send error: {ex}")
 
-    def _listener_thread(self):
-        while self.running:
+    def start_listening(self):
+        self._running = True
+        threading.Thread(target=self._listen_loop, daemon=True).start()
+
+    def stop_listening(self):
+        self._running = False
+
+    def _listen_loop(self):
+        while self._running:
             try:
-                data, addr = self.sock_in.recvfrom(4096)
-                text = data.decode('utf-8')
-                if self.telemetry_callback:
-                    self.telemetry_callback(text)
-            except Exception:
-                time.sleep(0.01)
-
-    def _send(self, text: str):
-        self.sock_out.sendto(text.encode('utf-8'), (self.rc_host, self.rc_port))
-
-    def send_rc(self, roll: int, pitch: int, yaw: int, throttle: int, arm: int = 0, mode: str = 'STABILIZE'):
-        # Compose CSV message: "ROLL:1500,PITCH:1500,YAW:1500,THROTTLE:1000,ARM:0,MODE:STABILIZE"
-        text = f"ROLL:{roll},PITCH:{pitch},YAW:{yaw},THROTTLE:{throttle},ARM:{arm},MODE:{mode}"
-        self._send(text)
-
-    def send_arm(self, arm: bool):
-        self._send(f"ARM:{1 if arm else 0}")
-
-    def send_mode(self, mode: str):
-        self._send(f"MODE:{mode}")
-
-    def send_custom(self, msg: str):
-        self._send(msg)
+                data, addr = self.recv_sock.recvfrom(4096)
+                s = data.decode('utf-8')
+                self.console_received.emit(f"Recv: {s}")
+                if s.startswith('TELEM,'):
+                    parts = s.split(',')
+                    try:
+                        r = float(parts[1]); p = float(parts[2]); y = float(parts[3])
+                        self.telemetry_received.emit(r, p, y)
+                    except Exception as ex:
+                        self.console_received.emit(f"Telemetry parse error: {ex}")
+            except BlockingIOError:
+                # nothing to read
+                time.sleep(0.02)
+            except Exception as ex:
+                self.console_received.emit(f"Recv error: {ex}")
+                time.sleep(0.1)

@@ -2,23 +2,30 @@
 
 #include <string>
 #include <sys/socket.h>
-#include <arpa/inet.h>
-#include <unistd.h>
 #include <netinet/in.h>
-#include <fcntl.h>
-#include <cstring>
-#include <stdexcept>
+#include <arpa/inet.h>
 
 class UDPSocket {
 public:
     UDPSocket();
     ~UDPSocket();
 
-    void bind_port(unsigned short port, const std::string &addr = "127.0.0.1");
-    int recv_from(char *buffer, size_t size, sockaddr_in &sender);
-    void send_to(const std::string &data, const std::string &addr, unsigned short port);
-    void set_nonblocking(bool nonblock);
+    // Bind to a local port (for listening)
+    bool bind_to_port(uint16_t port);
+
+    // Send to IP/port
+    bool send_to(const std::string &ip, uint16_t port, const std::string &data);
+
+    // Blocking receive (for Simulink - lock-step)
+    ssize_t recv_blocking(char *buf, size_t max_len, std::string &sender_ip, uint16_t &sender_port);
+
+    // Non-blocking receive (for Python RC listener)
+    ssize_t recv_nonblocking(char *buf, size_t max_len, std::string &sender_ip, uint16_t &sender_port);
+
+    // Set socket blocking or non-blocking
+    bool set_blocking(bool blocking);
 
 private:
-    int sockfd_;
+    int fd_ = -1;
+    struct sockaddr_in addr_;
 };

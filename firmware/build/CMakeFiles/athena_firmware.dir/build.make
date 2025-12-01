@@ -83,24 +83,10 @@ CMakeFiles/athena_firmware.dir/src/main.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/athena_firmware.dir/src/main.cpp.s"
 	/usr/lib/ccache/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ercu/Desktop/Repos/AthenaPilot/firmware/src/main.cpp -o CMakeFiles/athena_firmware.dir/src/main.cpp.s
 
-CMakeFiles/athena_firmware.dir/src/pid.cpp.o: CMakeFiles/athena_firmware.dir/flags.make
-CMakeFiles/athena_firmware.dir/src/pid.cpp.o: /home/ercu/Desktop/Repos/AthenaPilot/firmware/src/pid.cpp
-CMakeFiles/athena_firmware.dir/src/pid.cpp.o: CMakeFiles/athena_firmware.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ercu/Desktop/Repos/AthenaPilot/firmware/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/athena_firmware.dir/src/pid.cpp.o"
-	/usr/lib/ccache/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/athena_firmware.dir/src/pid.cpp.o -MF CMakeFiles/athena_firmware.dir/src/pid.cpp.o.d -o CMakeFiles/athena_firmware.dir/src/pid.cpp.o -c /home/ercu/Desktop/Repos/AthenaPilot/firmware/src/pid.cpp
-
-CMakeFiles/athena_firmware.dir/src/pid.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/athena_firmware.dir/src/pid.cpp.i"
-	/usr/lib/ccache/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ercu/Desktop/Repos/AthenaPilot/firmware/src/pid.cpp > CMakeFiles/athena_firmware.dir/src/pid.cpp.i
-
-CMakeFiles/athena_firmware.dir/src/pid.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/athena_firmware.dir/src/pid.cpp.s"
-	/usr/lib/ccache/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ercu/Desktop/Repos/AthenaPilot/firmware/src/pid.cpp -o CMakeFiles/athena_firmware.dir/src/pid.cpp.s
-
 CMakeFiles/athena_firmware.dir/src/mixer.cpp.o: CMakeFiles/athena_firmware.dir/flags.make
 CMakeFiles/athena_firmware.dir/src/mixer.cpp.o: /home/ercu/Desktop/Repos/AthenaPilot/firmware/src/mixer.cpp
 CMakeFiles/athena_firmware.dir/src/mixer.cpp.o: CMakeFiles/athena_firmware.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ercu/Desktop/Repos/AthenaPilot/firmware/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/athena_firmware.dir/src/mixer.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ercu/Desktop/Repos/AthenaPilot/firmware/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/athena_firmware.dir/src/mixer.cpp.o"
 	/usr/lib/ccache/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/athena_firmware.dir/src/mixer.cpp.o -MF CMakeFiles/athena_firmware.dir/src/mixer.cpp.o.d -o CMakeFiles/athena_firmware.dir/src/mixer.cpp.o -c /home/ercu/Desktop/Repos/AthenaPilot/firmware/src/mixer.cpp
 
 CMakeFiles/athena_firmware.dir/src/mixer.cpp.i: cmake_force
@@ -110,6 +96,20 @@ CMakeFiles/athena_firmware.dir/src/mixer.cpp.i: cmake_force
 CMakeFiles/athena_firmware.dir/src/mixer.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/athena_firmware.dir/src/mixer.cpp.s"
 	/usr/lib/ccache/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ercu/Desktop/Repos/AthenaPilot/firmware/src/mixer.cpp -o CMakeFiles/athena_firmware.dir/src/mixer.cpp.s
+
+CMakeFiles/athena_firmware.dir/src/pid.cpp.o: CMakeFiles/athena_firmware.dir/flags.make
+CMakeFiles/athena_firmware.dir/src/pid.cpp.o: /home/ercu/Desktop/Repos/AthenaPilot/firmware/src/pid.cpp
+CMakeFiles/athena_firmware.dir/src/pid.cpp.o: CMakeFiles/athena_firmware.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ercu/Desktop/Repos/AthenaPilot/firmware/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/athena_firmware.dir/src/pid.cpp.o"
+	/usr/lib/ccache/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/athena_firmware.dir/src/pid.cpp.o -MF CMakeFiles/athena_firmware.dir/src/pid.cpp.o.d -o CMakeFiles/athena_firmware.dir/src/pid.cpp.o -c /home/ercu/Desktop/Repos/AthenaPilot/firmware/src/pid.cpp
+
+CMakeFiles/athena_firmware.dir/src/pid.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/athena_firmware.dir/src/pid.cpp.i"
+	/usr/lib/ccache/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ercu/Desktop/Repos/AthenaPilot/firmware/src/pid.cpp > CMakeFiles/athena_firmware.dir/src/pid.cpp.i
+
+CMakeFiles/athena_firmware.dir/src/pid.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/athena_firmware.dir/src/pid.cpp.s"
+	/usr/lib/ccache/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ercu/Desktop/Repos/AthenaPilot/firmware/src/pid.cpp -o CMakeFiles/athena_firmware.dir/src/pid.cpp.s
 
 CMakeFiles/athena_firmware.dir/src/udp_socket.cpp.o: CMakeFiles/athena_firmware.dir/flags.make
 CMakeFiles/athena_firmware.dir/src/udp_socket.cpp.o: /home/ercu/Desktop/Repos/AthenaPilot/firmware/src/udp_socket.cpp
@@ -128,16 +128,16 @@ CMakeFiles/athena_firmware.dir/src/udp_socket.cpp.s: cmake_force
 # Object files for target athena_firmware
 athena_firmware_OBJECTS = \
 "CMakeFiles/athena_firmware.dir/src/main.cpp.o" \
-"CMakeFiles/athena_firmware.dir/src/pid.cpp.o" \
 "CMakeFiles/athena_firmware.dir/src/mixer.cpp.o" \
+"CMakeFiles/athena_firmware.dir/src/pid.cpp.o" \
 "CMakeFiles/athena_firmware.dir/src/udp_socket.cpp.o"
 
 # External object files for target athena_firmware
 athena_firmware_EXTERNAL_OBJECTS =
 
 athena_firmware: CMakeFiles/athena_firmware.dir/src/main.cpp.o
-athena_firmware: CMakeFiles/athena_firmware.dir/src/pid.cpp.o
 athena_firmware: CMakeFiles/athena_firmware.dir/src/mixer.cpp.o
+athena_firmware: CMakeFiles/athena_firmware.dir/src/pid.cpp.o
 athena_firmware: CMakeFiles/athena_firmware.dir/src/udp_socket.cpp.o
 athena_firmware: CMakeFiles/athena_firmware.dir/build.make
 athena_firmware: CMakeFiles/athena_firmware.dir/link.txt
